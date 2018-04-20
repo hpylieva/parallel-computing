@@ -1,8 +1,9 @@
-class Account ( number : Long , initialAmount : Int ) {
+class AccountLocking(number : Long, initialAmount : Int ) {
   private val uid = number
   private var amount = initialAmount
 
-  def transfer(to: Account, amount: Int) =
+  def transfer(to: AccountLocking, amount: Int) =
+  // not global monitors as this will block all the accounts when transaction between some 2 is held
     this.synchronized {
       to.synchronized {
         this.amount -= amount

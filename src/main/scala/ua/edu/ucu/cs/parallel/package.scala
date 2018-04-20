@@ -1,9 +1,5 @@
 package ua.edu.ucu.cs
 
-import java.util.concurrent.ForkJoinPool
-import java.util.concurrent.RecursiveTask
-import java.util.concurrent.ForkJoinWorkerThread
-
 package object parallel {
 
   import java.util.concurrent._
@@ -27,6 +23,8 @@ package object parallel {
     t
   }
 
+  // both arguments are call by name because we don't want them to be computed
+  // when we are passing them into function
   def parallel[A, B](taskA: => A, taskB: => B): (A, B) = {
     val right = task { taskB }
     val left = taskA

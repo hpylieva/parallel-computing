@@ -1,4 +1,4 @@
-object mainBenchmarking{
+object runBenchmarking{
   def main(args: Array[String]): Unit = {
     val xs = List( 1 , 2 , 3 , 42)
     val startTime = System.nanoTime

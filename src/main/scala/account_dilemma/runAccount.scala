@@ -1,5 +1,7 @@
+import account_dilemma.AccountNonLocking
+
 object Main {
-def startThread ( a : Account , b : Account , amount : Int ) = {
+def startThread (a : AccountNonLocking, b : AccountNonLocking, amount : Int ) = {
   val thread = new Thread {
     override def run = {
       (0 until amount) map { _ =>
@@ -13,11 +15,11 @@ def startThread ( a : Account , b : Account , amount : Int ) = {
 
 
   def main(args: Array[String]): Unit = {
-    val a = new Account(12399, 100)
-    val b = new Account(43578, 100)
+    val a = new AccountNonLocking(12399, 1000)
+    val b = new AccountNonLocking(43578, 1000)
 
     println(s"Accounts before transfer: \n\t$a\n\t$b\n")
-
+    // this will crate a dead lock
     val t1 = startThread(a, b, 10)
     val t2 = startThread(b, a, 20)
 
