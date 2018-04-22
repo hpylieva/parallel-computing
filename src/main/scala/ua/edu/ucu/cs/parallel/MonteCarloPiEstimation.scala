@@ -1,6 +1,6 @@
-package ua.edu.cs.parallel
+package ua.edu.ucu.cs.parallel
 
-import java.util.concurrent.{ForkJoinPool, ForkJoinWorkerThread, RecursiveTask}
+import org.scalameter.{Key, Warmer, config}
 
 import scala.util.Random
 
@@ -9,7 +9,6 @@ object MonteCarloPiEstimation {
 
   def countPointsInsideCircle(totalNumberOfPoints: Int): Int = {
     def rndX = new Random
-
     def rndY = new Random
 
     def simulate(hits: Int, pointsGenerated: Int): Int =
@@ -18,57 +17,42 @@ object MonteCarloPiEstimation {
       else {
         val x = rndX.nextDouble
         val y = rndY.nextDouble
-
         simulate(hits + (if (x * x + y * y <= 1) 1 else 0), pointsGenerated + 1)
       }
 
     simulate(0, 0)
   }
 
-  def piPair(totalNumberOfPoints: Int) = {
-    val(pi1, pi2) = parallel(countPointsInsideCircle(totalNumberOfPoints/2), countPointsInsideCircle(totalNumberOfPoints/2))
-    4.0*(pi1 + pi2) / totalNumberOfPoints
+  def piPar(totalNumberOfPoints: Int) = {
+    val((pi1, pi2), (pi3, pi4)) = parallel(parallel(countPointsInsideCircle(totalNumberOfPoints/4), countPointsInsideCircle(totalNumberOfPoints/4)),
+      parallel(countPointsInsideCircle(totalNumberOfPoints/4), countPointsInsideCircle(totalNumberOfPoints/4)))
+
+    4.0*(pi1 + pi2 + pi3 + pi4) / totalNumberOfPoints
   }
 
-//  def main(args: Array[String]): Unit = {
-//    val totalNumberOfPoints = 1000000
-//    val standardConfig = config(
-//      Key.exec.minWarmupRuns -> 100,
-//      Key.exec.maxWarmupRuns -> 300,
-//
-//    )
-//  }
+  def main(args: Array[String]): Unit = {
 
-  val forkJoinPool = new ForkJoinPool
+    val totalNumberOfPoints = 100000
 
-  def task[T](computation: => T): RecursiveTask[T] = {
-    val t = new RecursiveTask[T] {
-      def compute = computation
+    //println(pi(totalNumberOfPoints))
+
+    val standardConfig = config(
+      Key.exec.minWarmupRuns -> 100,
+      Key.exec.maxWarmupRuns -> 300,
+      Key.exec.benchRuns -> 100,
+      Key.verbose -> true) withWarmer new Warmer.Default
+
+    val seqtime = standardConfig measure {
+      pi(totalNumberOfPoints)
     }
 
-    Thread.currentThread match {
-      case wt: ForkJoinWorkerThread =>
-        t.fork() // schedule for execution
-      case _ =>
-        forkJoinPool.execute(t)
+    val partime = standardConfig measure {
+      piPar(totalNumberOfPoints)
     }
 
-    t
-  }
-
-  def parallel[A, B](taskA: => A, taskB: => B): (A, B) = {
-    val right = task { taskB }
-    val left = taskA
-
-    (left, right.join())
-  }
-
-  def parallel[A, B, C, D](taskA: => A, taskB: => B, taskC: => C, taskD: => D): (A, B, C, D) = {
-    val ta = task { taskA }
-    val tb = task { taskB }
-    val tc = task { taskC }
-    val td = taskD
-    (ta.join(), tb.join(), tc.join(), td)
+    println(s"sequential time $seqtime ms")
+    println(s"parallel time $partime ms")
+    println(s"speedup: ${seqtime.value/partime.value}")
   }
 }
 

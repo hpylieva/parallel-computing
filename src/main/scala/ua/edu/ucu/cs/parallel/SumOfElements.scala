@@ -1,9 +1,10 @@
 package ua.edu.ucu.cs.parallel
+
 import org.scalameter._
 
 import scala.util.Random
 
-object SumOfPower{
+object SumOfElements{
 
   def power(x: Int, p: Double): Int =
     math.exp(p * math.log(Math.abs(x))).toInt
@@ -11,12 +12,12 @@ object SumOfPower{
   def sumSegment(a: Array[Int], p: Double, from: Int, to: Int): Int = {
     def iter(sum: Int, index: Int): Int =
       if (index >= to) sum
-      else iter(sum + power(a(index),p), index +1)
+      else iter(sum + a(index), index +1)
 
     iter(0, from)
   }
 
-  var threshold = 1000 /// by reducing the threshold we are producing more parallel computations
+  var threshold = 10000 /// by reducing the threshold we are producing more parallel computations
 
   def sumSegmentPar(a: Array[Int], p: Double, from: Int, to: Int): Int = {
     if (to - from < threshold)
@@ -28,11 +29,9 @@ object SumOfPower{
     }
   }
 
-  def pNorm(a: Array[Int], p: Double): Int =
-    power(sumSegment(a,p,0,a.length), 1/p)
+  def sumOfElements(a: Array[Int], p: Double): Int = sumSegment(a,p,0,a.length)
 
-  def pNormPar(a: Array[Int], p: Double): Int = power(sumSegmentPar(a,p,0, a.length), 1/p)
-
+  def sumOfElementsPar(a: Array[Int], p: Double): Int = sumSegmentPar(a,p,0, a.length)
 
   def main(args: Array[String]): Unit = {
     val rnd = new Random
@@ -43,14 +42,14 @@ object SumOfPower{
       Key.exec.minWarmupRuns -> 100,
       Key.exec.maxWarmupRuns -> 300,
       Key.exec.benchRuns -> 100,
-      Key.verbose -> true) withWarmer(new Warmer.Default)
+      Key.verbose -> true) withWarmer (new Warmer.Default)
 
     val seqtime = standardConfig measure {
-      pNorm(input, 2)
+      sumOfElements(input, 2)
     }
 
     val partime = standardConfig measure {
-      pNormPar(input, 2)
+      sumOfElementsPar(input, 2)
     }
 
     println(s"sequential time $seqtime ms")
