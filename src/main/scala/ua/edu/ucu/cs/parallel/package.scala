@@ -19,7 +19,6 @@ package object parallel {
       case _ =>
         forkJoinPool.execute(t)
     }
-
     t
   }
 

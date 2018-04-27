@@ -8,7 +8,6 @@ import scala.util.Random
 object MonteCarloNumericalIntegration {
 
   def findMinAndMax(f:Double => Double, xmin: Double, xmax: Double, step: Double = 0.0001): (Double, Double) = {
-
     def find(ymin:Double, ymax: Double, steps: Int): (Double, Double) = {
       if (steps >= math.round((xmax-xmin)/step)) (ymin, ymax)
       else {
@@ -18,13 +17,11 @@ object MonteCarloNumericalIntegration {
       }
     }
    find(f(xmin), f(xmin), 0)
-
   }
 
   def integrate(f:Double => Double, xmin: Double, xmax: Double, totalNumberOfPoints: Int): Double = {
     val (ymin, ymax) = findMinAndMax(f, xmin, xmax)
     val rectArea = (ymax - ymin)*(xmax - xmin)
-
     rectArea * countPointsUnderCurve(f, xmin, xmax, ymin, ymax, totalNumberOfPoints) / totalNumberOfPoints
   }
 
@@ -56,16 +53,13 @@ object MonteCarloNumericalIntegration {
   def integratePar(f:Double => Double, xmin: Double, xmax: Double, totalNumberOfPoints: Int): Double = {
     val (ymin, ymax) = findMinAndMax(f, xmin, xmax)
     val rectArea = (ymax - ymin)*(xmax - xmin)
-    val (i1, i2) = parallel(countPointsUnderCurve(f, xmin, xmax, ymin, ymax, totalNumberOfPoints/4),
-                  countPointsUnderCurve(f, xmin, xmax, ymin, ymax, totalNumberOfPoints/4))
-    rectArea*(i1 + i2) / totalNumberOfPoints
-//    val((i1, i2), (i3, i4)) = parallel(
-//      parallel(countPointsUnderCurve(f, xmin, xmax, ymin, ymax, totalNumberOfPoints/4),
-//              countPointsUnderCurve(f, xmin, xmax, ymin, ymax, totalNumberOfPoints/4)),
-//      parallel(countPointsUnderCurve(f, xmin, xmax, ymin, ymax, totalNumberOfPoints/4),
-//              countPointsUnderCurve(f, xmin, xmax, ymin, ymax, totalNumberOfPoints/4)))
-//
-//    rectArea*(i1 + i2 + i3 + i4) / totalNumberOfPoints
+    val((i1, i2), (i3, i4)) = parallel(
+      parallel(countPointsUnderCurve(f, xmin, xmax, ymin, ymax, totalNumberOfPoints/4),
+              countPointsUnderCurve(f, xmin, xmax, ymin, ymax, totalNumberOfPoints/4)),
+      parallel(countPointsUnderCurve(f, xmin, xmax, ymin, ymax, totalNumberOfPoints/4),
+              countPointsUnderCurve(f, xmin, xmax, ymin, ymax, totalNumberOfPoints/4)))
+
+    rectArea*(i1 + i2 + i3 + i4) / totalNumberOfPoints
 
   }
 
@@ -76,7 +70,6 @@ object MonteCarloNumericalIntegration {
     val xmin = 0
     val xmax = Pi
 //    println(integrate(f, xmin, xmax, totalNumberOfPoints))
-
 
     val standardConfig = config(
       Key.exec.minWarmupRuns -> 100,
