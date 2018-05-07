@@ -7,7 +7,8 @@ import scala.util.Random
 
 object MonteCarloNumericalIntegration {
 
-  def evaluateSum(f:Double => Double, xmin: Double, xmax: Double, totalNumberOfPoints: Int, cumsum: Double, pointsGenerated: Int): Double = {
+  def evaluateSum(f:Double => Double, xmin: Double, xmax: Double, totalNumberOfPoints: Int,
+                  cumsum: Double, pointsGenerated: Int): Double = {
     if (pointsGenerated >= totalNumberOfPoints)
       cumsum
     else {
@@ -25,13 +26,13 @@ object MonteCarloNumericalIntegration {
 
 
   def integratePar(f:Double => Double, xmin: Double, xmax: Double, totalNumberOfPoints: Int): Double = {
-    val((i1, i2), (i3, i4)) = parallel(
-      parallel(evaluateSum(f,xmin, xmax, totalNumberOfPoints/4,0,0),
-        evaluateSum(f,xmin, xmax, totalNumberOfPoints/4,0,0)),
-      parallel(evaluateSum(f,xmin, xmax, totalNumberOfPoints/4,0,0),
-        evaluateSum(f,xmin, xmax, totalNumberOfPoints/4,0,0)))
+    val(i1, i2, i3, i4) = parallel(
+      integrateSeq(f,xmin, xmax, totalNumberOfPoints/4),
+      integrateSeq(f,xmin, xmax, totalNumberOfPoints/4),
+      integrateSeq(f,xmin, xmax, totalNumberOfPoints/4),
+      integrateSeq(f,xmin, xmax, totalNumberOfPoints/4))
 
-    (i1 + i2 + i3 + i4) / totalNumberOfPoints
+    (i1 + i2 + i3 + i4) / 4
 
   }
 
@@ -41,8 +42,8 @@ object MonteCarloNumericalIntegration {
     def f(x: Double): Double = sin(x)
     val xmin = 0
     val xmax = Pi
-    println(integrateSeq(f, xmin, xmax, totalNumberOfPoints))
-    println(integratePar(f, xmin, xmax, totalNumberOfPoints))
+//    println(integrateSeq(f, xmin, xmax, totalNumberOfPoints))
+//    println(integratePar(f, xmin, xmax, totalNumberOfPoints))
 
     val standardConfig = config(
       Key.exec.minWarmupRuns -> 100,

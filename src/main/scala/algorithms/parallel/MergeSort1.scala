@@ -1,3 +1,5 @@
+package algorithms.parallel
+
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
@@ -62,6 +64,7 @@ object MergeSort1 extends App {
     val pool = system.actorOf(RoundRobinPool(workers).props(Props[Worker]))
     val start = System.nanoTime
 
+    println(s"Let's sort the next: $unsorted")
     // First phase - split items into partitions and sort
     // each one on a separate actor .
     var futures = Future.traverse(blocks)(items => {
@@ -86,8 +89,8 @@ object MergeSort1 extends App {
       println("Invalid sort")
     } else {
       println(s"Sorted $items items with $workers workers in $end msecs")
+      println(s"Final result: $items\n")
     }
-
   }
 
   val system = ActorSystem()

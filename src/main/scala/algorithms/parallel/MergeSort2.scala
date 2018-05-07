@@ -1,3 +1,5 @@
+package algorithms.parallel
+
 import scala.math.{floor, log}
 import scala.util.Random
 import akka.actor._
@@ -42,6 +44,7 @@ object MergeSort2 extends App {
     val height = floor(log(workers) / log(2)).toInt
     val start = System.nanoTime
 
+    println(s"Let's sort the next: $unsorted")
     context.actorOf(Props(new Worker(unsorted, height)))
 
     def receive = {
@@ -51,6 +54,7 @@ object MergeSort2 extends App {
           println("Invalid sort")
         } else {
           println(s"Sorted $size items with $workers workers in $end msecs")
+          println(s"Final result: $items\n")
         }
         if (runs == 1) {
           context.system.shutdown()
@@ -94,7 +98,7 @@ object MergeSort2 extends App {
 
   val system = ActorSystem()
   val maxInt = 100
-  system.actorOf(Props(new Runner(size = 16, workers = 4, runs = 4)))
+  system.actorOf(Props(new Runner(size = 16, workers = 4, runs = 1)))
   system.awaitTermination()
 
 }
