@@ -8,31 +8,29 @@ import scala.util.Random
 object MonteCarloNumericalIntegration {
 
   def evaluateSum(f:Double => Double, xmin: Double, xmax: Double, totalNumberOfPoints: Int,
-                  cumsum: Double, pointsGenerated: Int): Double = {
+                  cumsum: Double, pointsGenerated: Int, random: Random = new Random): Double = {
     if (pointsGenerated >= totalNumberOfPoints)
       cumsum
     else {
-      val random = new Random
-      val rndX = xmin + random.nextDouble() * (xmax - xmin)
-      val rectArea = f(rndX) * (xmax - xmin)
-      evaluateSum(f,xmin, xmax, totalNumberOfPoints, cumsum + rectArea, pointsGenerated + 1)
+      evaluateSum(f,xmin, xmax, totalNumberOfPoints, cumsum + f(xmin + random.nextDouble() * (xmax - xmin)), pointsGenerated + 1)
     }
   }
 
   def integrateSeq(f:Double => Double, xmin: Double, xmax: Double, totalNumberOfPoints: Int): Double = {
-    val sumRectArea = evaluateSum(f,xmin, xmax, totalNumberOfPoints, 0, 0)
-    sumRectArea/totalNumberOfPoints
+
+    val sumFuncValue = evaluateSum(f,xmin, xmax, totalNumberOfPoints, 0, 0)
+    sumFuncValue*(xmax - xmin)/totalNumberOfPoints
   }
 
 
   def integratePar(f:Double => Double, xmin: Double, xmax: Double, totalNumberOfPoints: Int): Double = {
     val(i1, i2, i3, i4) = parallel(
-      integrateSeq(f,xmin, xmax, totalNumberOfPoints/4),
-      integrateSeq(f,xmin, xmax, totalNumberOfPoints/4),
-      integrateSeq(f,xmin, xmax, totalNumberOfPoints/4),
-      integrateSeq(f,xmin, xmax, totalNumberOfPoints/4))
+      evaluateSum(f,xmin, xmax, totalNumberOfPoints/4, 0, 0),
+      evaluateSum(f,xmin, xmax, totalNumberOfPoints/4, 0, 0),
+      evaluateSum(f,xmin, xmax, totalNumberOfPoints/4, 0, 0),
+      evaluateSum(f,xmin, xmax, totalNumberOfPoints/4, 0, 0))
 
-    (i1 + i2 + i3 + i4) / 4
+    (i1 + i2 + i3 + i4) / totalNumberOfPoints
 
   }
 
@@ -46,8 +44,8 @@ object MonteCarloNumericalIntegration {
 //    println(integratePar(f, xmin, xmax, totalNumberOfPoints))
 
     val standardConfig = config(
-      Key.exec.minWarmupRuns -> 100,
-      Key.exec.maxWarmupRuns -> 1000,
+      Key.exec.minWarmupRuns -> 30,
+      Key.exec.maxWarmupRuns -> 200,
       Key.exec.benchRuns -> 100,
       Key.verbose -> true) withWarmer new Warmer.Default
 
