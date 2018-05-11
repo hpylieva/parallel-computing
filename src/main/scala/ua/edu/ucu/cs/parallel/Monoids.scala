@@ -2,7 +2,7 @@ package ua.edu.ucu.cs.parallel
 
 import scala.util.Random
 
-object monoids{
+object Monoids{
   trait Monoid[A]{
     def op(x: A, y: A): A
     def zero: A
@@ -14,8 +14,8 @@ object monoids{
   }
 
   def listMonoid[A] = new Monoid[List[A]]{
-    override def op(x: List[A], y: List[A]) =  x++y
-    override def zero = Nil
+    def op(x: List[A], y: List[A]) =  x++y
+    def zero = Nil
   }
 
   def concat[A](xs: List[A], m: Monoid[A]): A =
@@ -120,14 +120,14 @@ object monoids{
     val source1 = (0 until length).map(_ * rnd.nextInt()).toVector
 
     val monoid1 = new Monoid[Int] {
-      def op(x: Int, y: Int) = x + y
+      def op(x: Int, y: Int): Int = x + y
       def zero = 0
     }
 
     //  no relationship between the var in context and the implicit variable in the function declaration
-    // during the dunction call the compiler will find the closest definition of an implicit in the scope
+    // during the function call the compiler will find the closest definition of an implicit in the scope
     //  which matches the type requirement
-    implicit val threshold = 1000
+    implicit val threshold: Int = 1000
     val res1 = foldMapPar(source1, 0, source1.length, monoid1)(power(_,2))
     println(s"Sum of squares of a vector of len $length is $res1")
 
@@ -140,12 +140,12 @@ object monoids{
     // the first value will be the sum of positive elements
     // and the 2nd is the number of positive elements
     val monoid2 = new Monoid[(Int, Int)] {
-      def op(x: (Int, Int), y: (Int, Int)) = {
+      def op(x: (Int, Int), y: (Int, Int)): (Int, Int) = {
         val x_ = if (x._1 >= 0) x else zero
         val y_ = if (y._1 >= 0) y else zero
         (x_._1 + y_._1, x_._2 + y_._2)
       }
-      def zero = (0,0)
+      def zero: (Int, Int) = (0,0)
     }
 
     val res2 = foldMapPar[Int, (Int, Int)](source2, 0, source2.length, monoid2)((_,1))
