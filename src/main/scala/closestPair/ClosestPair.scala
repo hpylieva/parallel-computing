@@ -101,7 +101,7 @@ object ClosestPair {
   ) withWarmer new Warmer.Default
 
   def main(args: Array[String]): Unit = {
-    val length = 10000
+    val length = math.pow(2,16).toInt //10000
     val points = generatePoints(length)
     writeToFile(points, "points.txt")
     val cores = Runtime.getRuntime.availableProcessors()
