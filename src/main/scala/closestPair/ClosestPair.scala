@@ -28,19 +28,16 @@ object ClosestPair {
     if (points.length < 2)
       (points, Double.MaxValue)
     else {
-      val (left, right, splitPoint) = splitByX(points)
-      val ((leftPoints, leftDistance), (rightPoints, rightDistance)) = processLeftRightParts(left, right)
-      val pointsMerged = sortByY(leftPoints ++ rightPoints)
+      val (leftInputPoints, rightInputPoints, splitPoint) = splitByX(points)
+      val ((leftResultPoints, leftDistance), (rightResultPoints, rightDistance)) =
+        if (leftInputPoints.length < threshold)
+          (closestPairMain(leftInputPoints), closestPairMain(rightInputPoints))
+        else
+          parallel(closestPairMain(leftInputPoints), closestPairMain(rightInputPoints))
+      val pointsMerged = sortByY(leftResultPoints ++ rightResultPoints)
       val dist = boundaryMerge(pointsMerged, leftDistance, rightDistance, splitPoint)
       (pointsMerged, dist)
     }
-  }
-
-  private def processLeftRightParts(leftPoints: Vector[Point], rightPoints: Vector[Point]) = {
-    if (leftPoints.length < threshold)
-      (closestPairMain(leftPoints), closestPairMain(rightPoints))
-    else
-      parallel(closestPairMain(leftPoints), closestPairMain(rightPoints))
   }
 
   def splitByX(points: Vector[Point]): (Vector[Point], Vector[Point], Point) = {
@@ -97,14 +94,14 @@ object ClosestPair {
   }
 
   val standardConfig: MeasureBuilder[Unit, Double] = config(
-    Key.exec.minWarmupRuns -> 5,//20,
-    Key.exec.maxWarmupRuns -> 50,//60,
+    Key.exec.minWarmupRuns -> 5,
+    Key.exec.maxWarmupRuns -> 50,
     Key.exec.benchRuns -> 20,
     Key.verbose -> true
   ) withWarmer new Warmer.Default
 
   def main(args: Array[String]): Unit = {
-    val length = 16
+    val length = 10000
     val points = generatePoints(length)
     writeToFile(points, "points.txt")
     val cores = Runtime.getRuntime.availableProcessors()
