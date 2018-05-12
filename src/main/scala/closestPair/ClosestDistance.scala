@@ -1,12 +1,11 @@
 package ua.edu.ucu.cs.parallel
-
 import java.io.{BufferedWriter, File, FileWriter}
 
 import org.scalameter.{Key, MeasureBuilder, Warmer, config}
 
 import scala.util.Random
 
-object ClosestPair {
+object ClosestDistance {
   case class Point(x: Int, y: Int)
 
   def distance(point1: Point, point2: Point): Double = {
@@ -31,55 +30,29 @@ object ClosestPair {
     (minDistance, p0, p1)
   }
 
+  private var threshold: Int = 0
+  private def setMaxPointsOnThread(pointsLength: Int, cores: Int): Unit = threshold = pointsLength / cores
 
-  private var maxPointsOnThread: Int = 0
-  private def setMaxPointsOnThread(pointsLength: Int, cores: Int): Unit = maxPointsOnThread = pointsLength / cores
-
-  def findDistanceOfClosestPair(points: Vector[Point], threads: Int = 1): (Double, Option[Point], Option[Point]) = {
+  def findDistanceOfClosestPair(points: Vector[Point], threads: Int = 1): Double = {
     setMaxPointsOnThread(points.length, threads)
-    val (_, distance, p0, p1) = closestPairMain(points)
-    (distance, p0, p1)
+    val (_, distance) = closestPairMain(points)
+    distance
   }
 
-  def closestPairMain(points: Vector[Point]): (Vector[Point], Double, Option[Point], Option[Point]) = {
+  def closestPairMain(points: Vector[Point]): (Vector[Point], Double) = {
     if (points.length < 2)
-      (points, Double.MaxValue, Option(points(0)), None)
+      (points, Double.MaxValue)
     else {
       val (leftInputPoints, rightInputPoints, splitPoint) = splitByX(points)
-      val ((leftResultPoints, leftDistance, p0_left, p1_left), (rightResultPoints, rightDistance, p0_right, p1_right)) =
-        if (leftInputPoints.length < maxPointsOnThread)
+      val ((leftResultPoints, leftDistance), (rightResultPoints, rightDistance)) =
+        if (leftInputPoints.length < threshold)
           (closestPairMain(leftInputPoints), closestPairMain(rightInputPoints))
         else
           parallel(closestPairMain(leftInputPoints), closestPairMain(rightInputPoints))
       val pointsMerged = sortByY(leftResultPoints ++ rightResultPoints)
-//      var minDistance = Double.MaxValue
-//      var p0_min = Option(points(0))
-//      var p1_min = Option(points(1))
-//      if (leftDistance<rightDistance){
-//         minDistance = leftDistance
-//         p0_min = p0_left
-//         p1_min = p1_left
-//      }
-//      else {
-//        minDistance = rightDistance
-//        p0_min = p0_right
-//        p1_min = p1_right
-//      }
-
-      val (dist, p0, p1) = boundaryMerge(pointsMerged,
-                      math.min(leftDistance,rightDistance),
-                      if  (leftDistance<rightDistance) p0_left else p0_right,
-                      if  (leftDistance<rightDistance) p1_left else p1_right,
-                      splitPoint)
-      (pointsMerged, dist, p0, p1)
+      val dist = boundaryMerge(pointsMerged, leftDistance, rightDistance, splitPoint)
+      (pointsMerged, dist)
     }
-  }
-
-  private def processLeftRightParts(leftPoints: Vector[Point], rightPoints: Vector[Point]) = {
-    if (leftPoints.length < maxPointsOnThread)
-      (closestPairMain(leftPoints), closestPairMain(rightPoints))
-    else
-      parallel(closestPairMain(leftPoints), closestPairMain(rightPoints))
   }
 
   def splitByX(points: Vector[Point]): (Vector[Point], Vector[Point], Point) = {
@@ -90,40 +63,30 @@ object ClosestPair {
     (left, right, medianX)
   }
 
-  def boundaryMerge(points: Vector[Point], minDistance: Double, p0: Option[Point], p1: Option[Point], middlePoint: Point): (Double, Option[Point], Option[Point]) = {
-
+  def boundaryMerge(points: Vector[Point], leftDistance: Double, rightDistance: Double, middlePoint: Point): Double = {
+    val minDistance = Math.min(leftDistance, rightDistance)
     val xl = middlePoint.x - minDistance
     val xr = middlePoint.x + minDistance
 
     val pointsInRange = points.filter(p => p.x >= xl && p.x <= xr)
-    val (minBoundaryDistance, p0_on_boundary, p1_on_boundary) = getMinPointsDistance(pointsInRange)
-    if (minDistance<minBoundaryDistance) {
-      (minDistance, p0, p1)
-    }
-    else   {
-      (minBoundaryDistance, p0_on_boundary, p1_on_boundary)
-    }
-
+    val minBoundaryDistance = getMinPointsDistance(pointsInRange)
+    scala.math.min(minDistance, minBoundaryDistance)
   }
 
-  def getMinPointsDistance(points: Vector[Point]): (Double, Option[Point], Option[Point]) = {
+  def getMinPointsDistance(points: Vector[Point]): Double = {
     if (points.length < 2)
-      (Double.MaxValue, Option(points(0)), None)
+      Double.MaxValue
     else {
       var minDistance = Double.MaxValue
-      var p0 = points(0)
-      var p1 = points(1)
       for (i <- 0 until points.length - 1) {
-        for (j <- i + 1 until math.min(i+8, points.length)) {
+        var j = i + 1
+        while (j < i + 8 && j < points.length) {
           val stepDistance = distance(points(i), points(j))
-          if (stepDistance < minDistance) {
-            minDistance = stepDistance
-            p0 = points(i)
-            p1 = points(j)
-          }
+          minDistance = if (stepDistance < minDistance) stepDistance else minDistance
+          j += 1
         }
       }
-      (minDistance, Option(p0), Option(p1))
+      minDistance
     }
   }
 
@@ -158,9 +121,9 @@ object ClosestPair {
     writeToFile(points, "points.txt")
     val cores = Runtime.getRuntime.availableProcessors()
 
-    println("closest_pair found with brute force: ", bruteForceClosestPair(points))
-    println("closest_pair sequential result: ", findDistanceOfClosestPair(points))
-    println("closest_pair parallel result:   ", findDistanceOfClosestPair(points, threads = cores))
+    println("closest pair found with brute force: ", bruteForceClosestPair(points))
+    println("closest pair found with sequential divide and conquer: ", findDistanceOfClosestPair(points))
+    println("closest pair found with parallel divide and conquer:   ", findDistanceOfClosestPair(points, threads = cores))
 
     val brutetime = standardConfig measure {
       bruteForceClosestPair(points)
@@ -174,10 +137,9 @@ object ClosestPair {
     }
 
     println(s"closest_pair brute force time:  $brutetime")
-    println(s"closest_pair sequential divide and concure time:  $seqtime")
-    println(s"closest_pair parallel divide and concure time:  $partime")
-    println(s"speedup when used divide and concure sequential vs brute force:  ${brutetime.value / seqtime.value}")
+    println(s"closest_pair sequential divide and conquer time:  $seqtime")
+    println(s"closest_pair parallel divide and conquer time:  $partime")
+    println(s"speedup when used divide and conquer sequential vs brute force:  ${brutetime.value / seqtime.value}")
     println(s"speedup when used parallel vs sequential:  ${seqtime.value / partime.value}")
   }
 }
-
