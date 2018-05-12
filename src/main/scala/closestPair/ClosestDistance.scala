@@ -12,22 +12,18 @@ object ClosestDistance {
     math.sqrt(math.pow(point1.x - point2.x, 2) + math.pow(point1.y - point2.y, 2))
   }
 
-  def bruteForceClosestPair(points: Vector[Point]): (Double, Point, Point) = {
-    var p0 = points(0)
-    var p1 = points(1)
+  def bruteForceClosestPair(points: Vector[Point]): Double = {
     var minDistance = distance(points(0), points(1))
 
     val length = points.length
     for (i <- 0 until length - 1) {
       for (j <- i + 1 until length) {
         if (distance(points(i), points(j)) < minDistance) {
-          minDistance = distance(points(i), points(j))
-          p0 = points(i)
-          p1 = points(j)
+          minDistance = math.min(distance(points(i), points(j)), minDistance)
         }
       }
     }
-    (minDistance, p0, p1)
+    minDistance
   }
 
   private var threshold: Int = 0
