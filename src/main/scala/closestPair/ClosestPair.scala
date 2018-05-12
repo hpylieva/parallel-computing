@@ -15,6 +15,21 @@ object ClosestPair {
     math.sqrt(math.pow(point1.x - point2.x, 2) + math.pow(point1.y - point2.y, 2))
   }
 
+  def bruteForceClosestPair(points: Vector[Point]): (Double, PointsPair) = {
+    var minPair = PointsPair(points(0), points(1))
+    var minDistance = distance(points(0), points(1))
+    val length = points.length
+    for (i <- 0 until length - 1) {
+      for (j <- i + 1 until length) {
+        if (distance(points(i), points(j)) < minPair.distance) {
+          minDistance = distance(points(i), points(j))
+          minPair = PointsPair(points(i), points(j))
+        }
+      }
+    }
+    (minDistance, minPair)
+  }
+
   private var threshold: Int = 0
   private def setMaxPointsOnThread(pointsLength: Int, cores: Int): Unit = threshold = pointsLength / cores
 
@@ -95,19 +110,24 @@ object ClosestPair {
 
   val standardConfig: MeasureBuilder[Unit, Double] = config(
     Key.exec.minWarmupRuns -> 5,
-    Key.exec.maxWarmupRuns -> 50,
+    Key.exec.maxWarmupRuns -> 20,
     Key.exec.benchRuns -> 20,
     Key.verbose -> true
   ) withWarmer new Warmer.Default
 
   def main(args: Array[String]): Unit = {
-    val length = math.pow(2,16).toInt //10000
+    val length = 16 //math.pow(2,16).toInt //10000
     val points = generatePoints(length)
     writeToFile(points, "points.txt")
     val cores = Runtime.getRuntime.availableProcessors()
 
+    println("closest_pair found with brute force: ", bruteForceClosestPair(points))
     println("closest_pair sequential result: ", findDistanceOfClosestPair(points))
     println("closest_pair parallel result:   ", findDistanceOfClosestPair(points, threads = cores))
+
+    val brutetime = standardConfig measure {
+      bruteForceClosestPair(points)
+    }
 
     val seqtime = standardConfig measure {
       findDistanceOfClosestPair(points)
@@ -116,8 +136,10 @@ object ClosestPair {
       findDistanceOfClosestPair(points, threads = cores)
     }
 
-    println(s"closest_pair sequential time:  $seqtime")
-    println(s"closest_pair parallel time:  $partime")
-    println(s"speedup when used parallel:  ${seqtime.value / partime.value}")
+    println(s"closest_pair brute force time:  $brutetime")
+    println(s"closest_pair sequential divide and concure time:  $seqtime")
+    println(s"closest_pair parallel divide and concure time:  $partime")
+    println(s"speedup when used divide and concure sequential vs brute force:  ${brutetime.value / seqtime.value}")
+    println(s"speedup when used parallel vs sequential:  ${seqtime.value / partime.value}")
   }
 }
