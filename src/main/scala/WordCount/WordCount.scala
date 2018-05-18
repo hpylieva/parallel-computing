@@ -114,8 +114,6 @@ object WordCount{
     lines
   }
 
-
-
   def main(args: Array[String]): Unit = {
     val text = getLinesFromFile("src/main/scala/WordCount/small.txt")
     implicit val threshold: Int = 15

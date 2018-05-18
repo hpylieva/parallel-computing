@@ -131,7 +131,6 @@ object Monoids{
     val res1 = foldMapPar(source1, 0, source1.length, monoid1)(power(_,2))
     println(s"Sum of squares of a vector of len $length is $res1")
 
-
     // computing the sum of positive integers and their number in the sequence
     val source2 = (0 until length).
       map(n => {val x= rnd.nextInt(100)
