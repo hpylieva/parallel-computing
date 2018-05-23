@@ -1,3 +1,7 @@
+package ua.edu.ucu.cs.parallel
+
+import org.scalameter._
+
 import scala.io.Source
 
 object WordCount{
@@ -7,117 +11,97 @@ object WordCount{
     def zero: A
   }
 
-  object WordCounter{
-    //     I need this method to be static (belong to a class not an object of a class)
-    def initWordCounter(text: String): WordCounter = {
-      lazy val startsWithSpace = text.startsWith(" ")
-      lazy val endsWithSpace = text.endsWith(" ")
-
-      val words = text.split("\\s+").toList
-
-      println(words.head, words.length - 2, words.last)
-
-      if (startsWithSpace && endsWithSpace) {
-        FullWords(words.head, words.length - 2, words.last)
-      }
-      else if (startsWithSpace){
-        RightUnfinished(words.head, words.length - 2, words.last)
-      }
-      else if (endsWithSpace){
-        LeftUnfinished(words.head, words.length - 2, words.last)
-      }
-      else BothUnfinished(words.head, words.length - 2, words.last)
-
-
-
-//      new FullWords(words.head, words.length - 2, words.last)
+  //Parallel folding with mapping
+  def foldMapPar[A, B](xs: IndexedSeq[A],
+                       from: Int, to: Int, m: Monoid[B])(f: A => B)
+                      (implicit thresholdSize: Int): B =
+    if (to-from < thresholdSize)
+      foldMapSegment(xs, from, to, m)(f)
+    else {
+      val middle = from + (to - from) / 2
+      val (l, r) = parallel(
+        foldMapPar(xs, from, middle, m)(f)(thresholdSize),
+        foldMapPar(xs, middle, to, m)(f)(thresholdSize))
+      m.op(l, r)
     }
+
+  def foldMapSegment[A,B](xs: IndexedSeq[A],from: Int, to: Int,
+                          m: Monoid[B])(f: A => B): B = {
+    var res = f(xs(from))
+    var index = from + 1
+    while (index < to){
+      res = m.op(res, f(xs(index)))
+//      println(res)
+      index = index + 1
+    }
+    res
   }
 
-  sealed trait WordCounter
-  case class FullWords(leftPart: String, countWords: Int, rightPart: String) extends WordCounter
-  case class LeftUnfinished(leftPart: String, countWords: Int, rightPart: String) extends WordCounter
-  case class RightUnfinished(leftPart: String, countWords: Int, rightPart: String) extends WordCounter
-  case class BothUnfinished(leftPart: String, countWords: Int, rightPart: String) extends WordCounter
-  case class Part(chars: String) extends WordCounter
-
-  val wordCountMonoid =  new Monoid[WordCounter] {
-    override def op(x: WordCounter, y: WordCounter): WordCounter = (x, y) match {
-      case ( FullWords(xLeftPart, xWordCount, xRightPart),
-      FullWords(yLeftPart, yWordCount, yRightPart)) =>
-        FullWords(xLeftPart, xWordCount + yWordCount + 2, yRightPart)
-
-      case ( RightUnfinished(xLeftPart, xWordCount, xRightPart),
-      LeftUnfinished(yLeftPart, yWordCount, yRightPart)) =>
-        FullWords(xLeftPart, xWordCount + yWordCount + 1, yRightPart)
-
-      case ( BothUnfinished(xLeftPart, xWordCount, xRightPart),
-      BothUnfinished(yLeftPart, yWordCount, yRightPart)) =>
-        FullWords(xLeftPart, xWordCount + yWordCount + 1, yRightPart)
-
-//      case (Part(leftPart), Part(rightPart)) =>
-//        Part(leftPart + rightPart)
-//
-//      case (Part(leftPart), FullWord("", wordCount, rightPart)) =>
-//        FullWord(leftPart, wordCount, rightPart)
-//
-//      case (FullWord(leftPart, wordCount, ""), Part(rightPart)) =>
-//        FullWord(leftPart, wordCount, rightPart)
-//
-//      case (Part(NonEmptySpaceString(_)), FullWord(_, wordCount, rightPart)) =>
-//        FullWord("", wordCount + 1, rightPart)
-//
-//      case (FullWord(leftPart, wordCount, _), Part(NonEmptySpaceString(_))) =>
-//        FullWord(leftPart, wordCount + 1, "")
-//
-//      case (Part(leftLeftPart), FullWord(leftRightPart, wordCount, rightPart)) =>
-//        FullWord(leftLeftPart + leftRightPart, wordCount, rightPart)
-//
-//      case (FullWord(leftPart, wordCount, rightLeftPart), Part(rightRightPart)) =>
-//        FullWord(leftPart, wordCount, rightLeftPart + rightRightPart)
-//
-//      case (FullWord(leftPart, leftWordCount, centreLeftPart), FullWord(centreRightPart, rightWordCount, rightPart)) =>
-//        FullWord(
-//          leftPart,
-//          leftWordCount + rightWordCount + (if ((centreLeftPart + centreRightPart) == "") 0 else 1),
-//          rightPart
-//        )
-    }
-
-    //      WordCounter(x.leftPart, x.countWords + y.countWords + 1, y.rightPart)
-    override def zero: WordCounter = FullWords("", 0, "")
-  }
-
-
-  def splitLineAndCountWords(text: String)(implicit maxSignsThreshold:Int) : Int = {
-    def iter(text: String): WordCounter = {
-      if (text.length < maxSignsThreshold)
-        WordCounter.initWordCounter(text)
-      else {
-        val (left, right) = text.splitAt(text.length / 2)
-        wordCountMonoid.op(WordCounter.initWordCounter(left),WordCounter.initWordCounter(right))
-      }
-    }
-
-//    val result = iter(text)
-    // add 2 as we have words in left and right parts
-    iter(text) match{
-      case FullWords(_, wordsCount, _) =>
-        wordsCount + 2
-    }
-//    result.countWords + 2
-  }
-
-  def getLinesFromFile(filename: String) = {
+  // read file where lines are separated by space
+  def readFile(filename: String): String= {
     val lines = Source.fromFile(filename).getLines.mkString(" ")
-    //    println(s"The file $filename contains ${lines.length} lines.")
     lines
   }
 
+  sealed trait WordCount
+  case class Stub(chars: String) extends WordCount
+  case class Part(lStub: String, words: Int, rStub: String) extends WordCount
+
+  val wordCountMonoid = new Monoid[WordCount] {
+    override def op(a1: WordCount, a2: WordCount): WordCount = (a1, a2) match {
+      case (Stub(s1), Stub(s2)) =>
+        Stub(s1 + s2)
+      case (Stub(s1), Part(ls2, w2, rs2)) =>
+        Part(s1 + ls2, w2, rs2)
+      case (Part(ls1, w1, rs1), Stub(s2)) =>
+        Part(ls1, w1, rs1 + s2)
+      case (Part(ls1, w1, rs1), Part(ls2, w2, rs2)) =>
+        Part(ls1, w1 + w2 + (if ((rs1 + ls2).isEmpty) 0 else 1), rs2)
+    }
+    override val zero = Stub("")
+  }
+
+  def wordCountFunction(c: Char): WordCount = {
+    // check for all signs separately not to count cases like "hello ! " as 2 words
+    // the less signs in the stop-signs set - the bigger speedup of parallel version
+    if (" ,.()[]{}!?" contains c) Part("", 0, "") else Stub(c.toString)
+  }
+
+  def unstub(s: String): Int = {
+    s.length min 1
+  }
+
+  def wordCountSeq(sentence: String): Int =
+    foldMapSegment(sentence, 0, sentence.length, wordCountMonoid)(wordCountFunction) match {
+      case Stub(s) => unstub(s)
+      case Part(l, words, r) => unstub(l) + words + unstub(r)
+    }
+
+  implicit val threshold: Int = 100
+  def wordCountPar(sentence: String): Int = {
+    foldMapPar(sentence, 0, sentence.length, wordCountMonoid)(wordCountFunction) match {
+      case Stub(s) => unstub(s)
+      case Part(l, words, r) => unstub(l) + words + unstub(r)
+    }
+  }
+
   def main(args: Array[String]): Unit = {
-    val text = getLinesFromFile("src/main/scala/WordCount/small.txt")
-    implicit val threshold: Int = 15
-    println(splitLineAndCountWords(text))
+    val source = readFile("src/main/scala/WordCount/big.txt")
+    println(s"Count sequential:   ${wordCountSeq(source)}")
+    println(s"Count parallel:     ${wordCountPar(source)}")
+
+    val standardConfig = config(
+      Key.exec.minWarmupRuns -> 10,
+      Key.exec.maxWarmupRuns -> 50,
+      Key.exec.benchRuns -> 100,
+      Key.verbose -> true
+    ).withWarmer(new Warmer.Default)
+    val seqTime = standardConfig.measure(wordCountSeq(source))
+    val parTime = standardConfig.measure(wordCountPar(source))
+
+    println(s"sequential time:  $seqTime")
+    println(s"parallel time:    $parTime")
+    println(s"speedup           ${seqTime.value / parTime.value}")
   }
 
 }
