@@ -1,0 +1,20 @@
+=================== Results ==================
+Size of input array: 100000
+
+Scala built-in time:  17.35067084 ms
+traditional approach time:  13.238624620000003 ms
+functional approach time:    127.37941112000003 ms
+speedup of traditional compared to functional 0.10393064706138673
+
+Functional approach is slower. This happens because the traditional operates
+ in-place on the original array, so no copies are done and no additional memory
+ is needed. The functional one allocates a new list and copies a lot of data on each call.
+
+parallel approach time:    2.5304598 ms
+speedup of parallel compared to traditional 5.231707146661647
+speedup of parallel compared to functional 50.33844486286643
+
+Again, when we compare parallel version Scala implementation with traditional,
+trad is fasted fot the same reason explained above. It is more 'honest' to compare
+parallel approach with functional. In this case we can see a great speedup.
+Note that when size of array is e.g. 100 000, parallel approach becomes faster than even traditional.
