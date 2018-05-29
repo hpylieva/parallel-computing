@@ -47,28 +47,24 @@ object QuickSort{
     val <= = (a:Int, b: Int) => a <= b
     val > = (a:Int, b: Int) => a > b
 
-    def getPart(list: Array[Int], pivot: Int, fn: (Int, Int) => Boolean): Array[Int] = {
-      // marking elements <= pivot as 1 else 0
-//      def findF(f: Array[Int], current: Int): Array[Int] = {
-//        if (f(current) <= pivot) f(current) = 1 //else f(current) = 0
-//        findF(f, current+1)
-//      }
-//      val F: Array[Int] = findF(new Array[Int](list.length), 0)
-      def f(x: Int) = if (fn(x, pivot)) 1 else 0
-      val F = list.map( x => f(x))
-      // prefix scan of Array F
-      val K = F.scanLeft(0)((acc, elem) => acc + elem).drop(1)
-      val L = F.zipWithIndex.par.flatMap{case (x, id) => if (x==1) List(list(id)) else Nil }
-      L.toArray
-    }
-
     def qsortPar(list: Array[Int]): Array[Int] = {
+      if (list.length == 1 || list.forall(_ == list.head)) return list
       val pivot = list(rand.nextInt(list.length))
-      val (l,r) = parallel(getPart(list, pivot, <=),  getPart(list, pivot, >))
+
+      def getPart(list: Array[Int], fn: (Int, Int) => Boolean): Array[Int] = {
+        def f(x: Int) = if (fn(x, pivot)) 1 else 0
+        val F = list.map( x => f(x))
+        // prefix scan of Array F
+        val K = F.scanLeft(0)((acc, elem) => acc + elem).drop(1)
+        val L = F.zipWithIndex.par.flatMap{case (x, id) => if (x==1) List(list(id)) else Nil }
+        L.toArray
+      }
+
+      val (l,r) = parallel(getPart(list, <=),  getPart(list,  >))
       if (printParallelProgress)
-        println(s"l: [${l.mkString(" ")}] r: [${r.mkString(" ")}]")
-      val al = if (l.length == 1 || l.forall(_ == l.head)) l else qsortPar(l)
-      val ar = if (r.length == 1 || r.forall(_ == r.head)) r else qsortPar(r)
+        println(s"pivot: $pivot l: [${l.mkString(" ")}] r: [${r.mkString(" ")}]")
+      val al = qsortPar(l)
+      val ar = qsortPar(r)
       al ++ ar
     }
     qsortPar(xs)
@@ -104,7 +100,7 @@ object QuickSort{
         Key.verbose -> false
       ).withWarmer(new Warmer.Default)
 
-      val builtInScalaTime = standardConfig.measure(
+      val fromScalaLibraryTime = standardConfig.measure(
         scala.util.Sorting.quickSort(arrRandom.toArray))
       val tradTime = standardConfig.measure(quickSortTraditional(arrRandom.toArray))
       val funcTime = standardConfig.measure(quickSortFunctional(arrRandom.toList))
@@ -112,7 +108,7 @@ object QuickSort{
 
       println("=================== Results ==================")
       println(s"Size of input array: $max \n")
-      println(s"Scala built-in time:  $builtInScalaTime")
+      println(s"scala.util.Sorting.quickSort time:  $fromScalaLibraryTime")
       println(s"traditional approach time:  $tradTime")
       println(s"functional approach time:    $funcTime")
       println(s"speedup of traditional compared to functional ${tradTime.value / funcTime.value}")
@@ -125,7 +121,7 @@ object QuickSort{
       println(s"speedup of parallel compared to traditional ${tradTime.value / parTime.value}")
       println(s"speedup of parallel compared to functional ${funcTime.value / parTime.value}")
       println("\nAgain, when we compare parallel version Scala implementation with traditional,\n" +
-        "trad is fasted fot the same reason explained above. It is more 'honest' to compare \n" +
+        "trad is fasted for the same reason explained above. It is more 'honest' to compare \n" +
         "parallel approach with functional. In this case we can see a great speedup.\n" +
         "Note that when size of array is e.g. 100 000, parallel approach becomes faster than even traditional."
       )
